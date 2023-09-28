@@ -16,12 +16,14 @@ class DLS_class:
         self.df = pd.DataFrame( )
         self.ave_df = pd.DataFrame( )
         
+        
     def load_data(self):
-
+    """ Load the data in a given folder and save it in a dataframe
+    """
         os.chdir(self.dirname)
         for fname in glob.glob("*.dat"):    
-            lines=[]
-            i=0
+            lines = []
+            i = 0
             
             try:
                 with open (fname, 'rt') as file:     # Open file for reading text data.
@@ -86,14 +88,16 @@ class DLS_class:
                                 "t":                            t,
                                 "filename":                     fname},
                              ignore_index=True)
-                        
                   
             except ValueError:
-                print('The file'+fname+' is not a g2 file.')
+                print(f'The file {fname} is not a g2 file.')
 
         
     def average_data(self, plot=True):
-        # angles = sorted(set(self.df['Scattering angle']))
+    """ Average the measurements at the same temperature and angle
+        Args:
+            plot: choose to plot or not the experimental g2 functions for each temperature
+    """
         temperatures = sorted(set(self.df['Temperature']))
         
         for tn,temperature in enumerate(temperatures):
@@ -107,22 +111,21 @@ class DLS_class:
                 plt.xscale('log')
                 plt.xlabel('t (s)')
                 plt.ylabel('$g_2$-1')
-                plt.legend(frameon=False, ncols=2, fontsize=8, title='angle')
 
-            for n,angle in enumerate(angles):
+            for n, angle in enumerate(angles):
+                df_selected = self.df[(self.df['Scattering angle']==angle)&(self.df['Temperature']==temperature)]
 
-                df_selected=self.df[(self.df['Scattering angle']==angle)&(self.df['Temperature']==temperature)]
                 try:
-                    len_g2=[]
+                    len_g2 = []
                     for index in df_selected.index:
                         len_g2.append(len(df_selected['g2'][index]))
 
-                    len_g2_final=np.min(len_g2)
-                    g2_all=np.zeros([len_g2_final, len( df_selected.index)])
+                    len_g2_final = np.min(len_g2)
+                    g2_all = np.zeros([len_g2_final, len(df_selected.index)])
                     
-                    g2=np.zeros(len_g2_final)
-                    dg2=np.zeros(len_g2_final)
-                    t=np.zeros(len_g2_final)
+                    g2 = np.zeros(len_g2_final)
+                    dg2 = np.zeros(len_g2_final)
+                    t = np.zeros(len_g2_final)
                     
                     for i,index in enumerate(df_selected.index):   
                         g2_all[:,i]=df_selected['g2'][index][:len_g2_final]
@@ -155,22 +158,31 @@ class DLS_class:
                 except ValueError:
                     print(temperature, angle, df_selected['filename'])#len_g2, df_selected.index)
 
+            if plot:
+                plt.legend(frameon=False, ncols=2, fontsize=8, title='angle')
 
-    # problema del plot di merda qui. controllare
-    def plot_fit_g2(self,function,tnorm,p0=False,plot=True):
-        
+
+
+    def plot_fit_g2(self, function, tnorm=10, p0=False, plot=True):
+        """ Fit the g2 functions
+        Args:
+            function: function to use for the fit (exponential, stretched_exponential, double_stretched_exponential, double_exponential)
+            tnorm: number of datapoint to average to get the intercept of the g2
+            p0: parameter initial guesses for the fit
+            plot: choose to plot or not the g2 functions with their fits for each temperature
+        """
         temperatures = sorted(set(self.ave_df['Temperature']))
         colors_temp = plt.cm.coolwarm(np.linspace(0,1,len(temperatures)))
         Dconst = np.zeros(len(temperatures))
         
         fig1 = plt.figure()
 
-        npar=len(signature(function).parameters)
-        boundaries=(np.zeros(npar-1),np.ones(npar-1)*100)
-        if not(p0):
-            p0=np.ones(npar-1)
+        npar = len(signature(function).parameters)
+        boundaries = (np.zeros(npar-1),np.ones(npar-1)*100)
 
-
+        if not p0:
+            print('not p0: ', p0)
+            p0 = np.ones(npar-1)
 
         for tn,temperature in enumerate(temperatures):
         
