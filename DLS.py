@@ -5,12 +5,9 @@ import matplotlib.pyplot as plt
 from inspect import signature
 from scipy.optimize import curve_fit as fit
 
-
-
 class DLS_class:
     '''  Class to load data, create a dataframe, analyse data  '''
 
-    
     def __init__(self,dirname='',wavelength = 660e-9,n0 = 1.33 ):
         
         self.dirname = dirname
@@ -20,9 +17,9 @@ class DLS_class:
         self.ave_df = pd.DataFrame( )
         
     def load_data(self):
+
         os.chdir(self.dirname)
-        for fname in glob.glob("*.dat"):
-            
+        for fname in glob.glob("*.dat"):    
             lines=[]
             i=0
             
@@ -86,7 +83,8 @@ class DLS_class:
                                 "Average Count rate  B":        av_crb,
                                 "Intercept":                    intercept,
                                 "g2":                           g2,
-                                "t":                            t,},
+                                "t":                            t,
+                                "filename":                     fname},
                              ignore_index=True)
                         
                   
@@ -94,81 +92,100 @@ class DLS_class:
                 print('The file'+fname+' is not a g2 file.')
 
         
-    def average_data(self):
-        angles = sorted(set(self.df['Scattering angle']))
-        colore = plt.cm.jet(np.linspace(0,1,len(angles)))
+    def average_data(self, plot=True):
+        # angles = sorted(set(self.df['Scattering angle']))
         temperatures = sorted(set(self.df['Temperature']))
         
-        
-        
-        
         for tn,temperature in enumerate(temperatures):
-            
-            plt.figure()
-            plt.title(f'T='+str(temperature)+' K')
-            for n,angle in enumerate(angles):
-                theta =angle
-                df_selected=self.df[(self.df['Scattering angle']==angle)&(self.df['Temperature']==temperature)]
- 
-                len_g2=[]
-                for index in df_selected.index:
-        
-                    len_g2.append(len(df_selected['g2'][index]))
-                    
-                len_g2_final=np.min(len_g2)
-                g2_all=np.zeros([len_g2_final, len( df_selected.index)])
-                
-                g2=np.zeros(len_g2_final)
-                dg2=np.zeros(len_g2_final)
-                t=np.zeros(len_g2_final)
-                
-                for i,index in enumerate(df_selected.index):   
-                    g2_all[:,i]=df_selected['g2'][index][:len_g2_final]
-                    
-                g2 = np.mean(g2_all,axis=1)
-                dg2 = np.std(g2_all,axis=1)
-                t = df_selected['t'][index][:len_g2_final]
-                
-                plt.errorbar(t,g2,dg2, color=colore[n])
+            angles = sorted(set(self.df[self.df['Temperature']==temperature]['Scattering angle']))
+            colore = plt.cm.jet(np.linspace(0,1,len(angles)))
+
+            if plot:    
+                plt.figure()
+                plt.title(f'T='+str(temperature)+' K')
                 plt.grid('on',lw=.4)
                 plt.xscale('log')
                 plt.xlabel('t (s)')
                 plt.ylabel('$g_2$-1')
-                
-                self.ave_df=self.ave_df.append(  
-                                {   "Scattering angle":             angle,
-                                    "q" :                          (4*np.pi*self.n0*np.sin(np.round(theta)/2*np.pi/180)/self.wavelength), # scattering vector, 1/m
-                                    "Temperature" :                 df_selected['Temperature'].mean(),
-                                    "Laser intensity" :             df_selected['Laser intensity'].mean(),
-                                    "Average Count rate  A":        df_selected["Average Count rate  A"].mean(),
-                                    "Average Count rate  B":        df_selected["Average Count rate  B"].mean(),
-                                    "Intercept":                    df_selected["Intercept"].mean(),
-                                    "g2":                           g2,
-                                    "dg2":                          dg2,
-                                    "t":                            t,},
-                                ignore_index=True)
- 
-    def plot_fit_g2(self,function,tnorm):
+                plt.legend(frameon=False, ncols=2, fontsize=8, title='angle')
+
+            for n,angle in enumerate(angles):
+
+                df_selected=self.df[(self.df['Scattering angle']==angle)&(self.df['Temperature']==temperature)]
+                try:
+                    len_g2=[]
+                    for index in df_selected.index:
+                        len_g2.append(len(df_selected['g2'][index]))
+
+                    len_g2_final=np.min(len_g2)
+                    g2_all=np.zeros([len_g2_final, len( df_selected.index)])
+                    
+                    g2=np.zeros(len_g2_final)
+                    dg2=np.zeros(len_g2_final)
+                    t=np.zeros(len_g2_final)
+                    
+                    for i,index in enumerate(df_selected.index):   
+                        g2_all[:,i]=df_selected['g2'][index][:len_g2_final]
+
+                    if len(df_selected.index) < 2:
+                        g2 = g2_all
+                        dg2 = g2_all*0.1
+
+                    else:
+                        g2 = np.mean(g2_all,axis=1)
+                        dg2 = np.std(g2_all,axis=1)
+
+                    t = df_selected['t'][index][:len_g2_final]
+                    
+                    if plot:
+                        plt.errorbar(t, g2, dg2, c=colore[n], label=f'{angle:.0f}')
+                        
+                    self.ave_df=self.ave_df.append(  
+                                    {   "Scattering angle":             angle,
+                                        "q" :                          (4*np.pi*self.n0*np.sin(np.round(angle)/2*np.pi/180)/self.wavelength), # scattering vector, 1/m
+                                        "Temperature" :                 df_selected['Temperature'].mean(),
+                                        "Laser intensity" :             df_selected['Laser intensity'].mean(),
+                                        "Average Count rate  A":        df_selected["Average Count rate  A"].mean(),
+                                        "Average Count rate  B":        df_selected["Average Count rate  B"].mean(),
+                                        "Intercept":                    df_selected["Intercept"].mean(),
+                                        "g2":                           g2,
+                                        "dg2":                          dg2,
+                                        "t":                            t,},
+                                    ignore_index=True)
+                except ValueError:
+                    print(temperature, angle, df_selected['filename'])#len_g2, df_selected.index)
+
+
+    # problema del plot di merda qui. controllare
+    def plot_fit_g2(self,function,tnorm,p0=False,plot=True):
         
         temperatures = sorted(set(self.ave_df['Temperature']))
-        colors_temp=plt.cm.coolwarm(np.linspace(0,1,len(temperatures)))
-        Dconst=np.zeros(len(temperatures))
+        colors_temp = plt.cm.coolwarm(np.linspace(0,1,len(temperatures)))
+        Dconst = np.zeros(len(temperatures))
         
-        fig1=plt.figure()
+        fig1 = plt.figure()
+
+        npar=len(signature(function).parameters)
+        boundaries=(np.zeros(npar-1),np.ones(npar-1)*100)
+        if not(p0):
+            p0=np.ones(npar-1)
+
+
+
         for tn,temperature in enumerate(temperatures):
         
-            df_selected=self.ave_df[self.ave_df['Temperature']==temperature]
+            df_selected = self.ave_df[self.ave_df['Temperature']==temperature]
             
             q=df_selected['q']
             nqvals = len(set(df_selected['q']))
             colors = plt.cm.jet(np.linspace(0,1,nqvals))
-            npar=len(signature(function).parameters)
-            print(npar)
-            p0=np.ones(npar-1)
-            boundaries=(np.zeros(npar-1),np.ones(npar-1)*np.infty)
-            
+
+            print(f'{temperature} K, measurements averaged: ', npar)
+       
             all_popt=[]
-            plt.figure()
+
+            if plot:
+                plt.figure()
             
             angles=(df_selected['Scattering angle'])
             
@@ -182,28 +199,31 @@ class DLS_class:
                 x = df_selected['t'][i]
                 
                 popt,pcov = fit(function,xdata=x,ydata=y,sigma=dy,p0=p0,bounds=boundaries)
-                plt.errorbar(x,y,dy,color=colors[qv],marker='o',ls='',mec='black',mew=.3)
-                plt.plot(x,function(x,*popt),color='red',ls='dashed',lw=1)
+                if plot:
+                    plt.errorbar(x,y,dy,color=colors[qv],marker='o',ls='',mec='black',mew=.3, label=f'{angle:.0f}')
+                    plt.plot(x,function(x,*popt), c='r', ls='--',lw=1)
+                    plt.grid('on',lw=.4)    
+                    plt.xscale('log')
+                    plt.xlabel('t (s)')
+                    plt.ylabel('$g_2$-1')
+                    plt.title(f'T={temperature:.0f} K')
+                    plt.legend(frameon=False, fontsize=8, title='angle', ncols=2)
+ 
                 all_popt += [popt]
-                
-            plt.grid('on',lw=.4)    
-            plt.xscale('log')
-            plt.xlabel('t (s)')
-            plt.ylabel('$g_2$-1')
-            
+                 
             
             all_popt=np.array(all_popt)
             plt.figure()
             Gamma=1/all_popt[:,1]
             plt.figure(fig1)
             D,pcov = fit(self.tau_fit,xdata=q**2,ydata=Gamma)
-            plt.plot(q**2,Gamma,color=colors_temp[tn],marker='o',ls='',mec='black',mew=.3, label='T='+str(temperature)+' K')
+            plt.plot(q**2,Gamma,color=colors_temp[tn],marker='o',ls='',mec='black',mew=.3, label=f'{temperature:.0f}')
             plt.plot(q**2,self.tau_fit(q**2,D),color='red',ls='dashed',lw=1)
             plt.grid('on',lw=.4)    
             plt.xlabel('$q^2$ (m$^{-2}$)')
             plt.ylabel('$\Gamma$ (s$^{-1}$)')
             Dconst[tn]=D
-            plt.legend()
+            plt.legend(title='T (K)')
             
         return(all_popt,q,Dconst,temperatures)
     
@@ -213,12 +233,15 @@ class DLS_class:
     @staticmethod
     def gauss_function(x, a, x0, sigma):
             return a*np.exp(-(x-x0)**2/(2*np.abs(sigma)**2))
+    
     @staticmethod   
     def tau_fit(x,a):
         return a*x
+    
     @staticmethod
     def tau_fit_offset(x,a,b):
         return a*x+b
+    
     @staticmethod
     def exponential(x,a,b):
         return np.abs(a)*np.exp(-2*x/(np.abs(b)))
@@ -228,11 +251,17 @@ class DLS_class:
         return np.abs(a)*np.exp(-2*(x/np.abs(b))**c)
 
     @staticmethod
-    def double_exponential(x,a1,b1,c1,a2,b2,c2):
+    def double_stretched_exponential(x,a1,b1,c1,a2,b2,c2):
         return np.abs(a1)*np.exp(-2*(x/np.abs(b1))**c1) + np.abs(a2)*np.exp(-2*(x/np.abs(b2))**c2)
+    
+    @staticmethod
+    def double_exponential(x,a1,b1,a2,b2,c2):
+        return np.abs(a1)*np.exp(-2*x/np.abs(b1)) + np.abs(a2)*np.exp(-2*(x/np.abs(b2))**c2)
+    
     @staticmethod
     def arrhenius(x,a,b):
         return -a*x+b
+    
     @staticmethod
     def power_law(x,a,b,c): # power law fit: X(T) = X0*(T/Ts-1))^(-gamma)
         return a*(x/b-1)**(-c)
