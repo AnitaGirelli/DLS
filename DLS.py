@@ -18,8 +18,8 @@ class DLS_class:
         
         
     def load_data(self):
-    """ Load the data in a given folder and save it in a dataframe
-    """
+        """ Load the data in a given folder and save it in a dataframe """
+
         os.chdir(self.dirname)
         for fname in glob.glob("*.dat"):    
             lines = []
@@ -94,10 +94,10 @@ class DLS_class:
 
         
     def average_data(self, plot=True):
-    """ Average the measurements at the same temperature and angle
-        Args:
-            plot: choose to plot or not the experimental g2 functions for each temperature
-    """
+        """ Average the measurements at the same temperature and angle
+            Args:
+                plot: choose to plot or not the experimental g2 functions for each temperature
+        """
         temperatures = sorted(set(self.df['Temperature']))
         
         for tn,temperature in enumerate(temperatures):
@@ -107,7 +107,7 @@ class DLS_class:
             if plot:    
                 plt.figure()
                 plt.title(f'T='+str(temperature)+' K')
-                plt.grid('on',lw=.4)
+                plt.grid(ls=':', c='gray', alpha=0.7)
                 plt.xscale('log')
                 plt.xlabel('t (s)')
                 plt.ylabel('$g_2$-1')
@@ -163,7 +163,7 @@ class DLS_class:
 
 
 
-    def plot_fit_g2(self, function, tnorm=10, p0=False, plot=True):
+    def plot_fit_g2(self, function, tnorm=10, p0=False, plot=True, boundaries=False):
         """ Fit the g2 functions
         Args:
             function: function to use for the fit (exponential, stretched_exponential, double_stretched_exponential, double_exponential)
@@ -176,23 +176,22 @@ class DLS_class:
         Dconst = np.zeros(len(temperatures))
         
         fig1 = plt.figure()
-
         npar = len(signature(function).parameters)
-        boundaries = (np.zeros(npar-1),np.ones(npar-1)*100)
-
+       
         if not p0:
-            print('not p0: ', p0)
             p0 = np.ones(npar-1)
+
+        if not boundaries:
+            boundaries = (np.zeros(npar-1),np.ones(npar-1)*100)
 
         for tn,temperature in enumerate(temperatures):
         
             df_selected = self.ave_df[self.ave_df['Temperature']==temperature]
             
-            q=df_selected['q']
+            q = df_selected['q']
+            q_fit = []
             nqvals = len(set(df_selected['q']))
             colors = plt.cm.jet(np.linspace(0,1,nqvals))
-
-            print(f'{temperature} K, measurements averaged: ', npar)
        
             all_popt=[]
 
@@ -202,42 +201,51 @@ class DLS_class:
             angles=(df_selected['Scattering angle'])
             
             
-            for qv,angle in enumerate(angles):   
+            for qv, angle in enumerate(angles):   
 
-                i= df_selected[df_selected['Scattering angle']==angle].index[0]
+                i = df_selected[df_selected['Scattering angle']==angle].index[0]
 
                 y =   df_selected['g2'][i] /np.mean(df_selected['g2'][i][:tnorm])
                 dy = df_selected['dg2'][i] /np.mean(df_selected['g2'][i][:tnorm])
                 x = df_selected['t'][i]
                 
-                popt,pcov = fit(function,xdata=x,ydata=y,sigma=dy,p0=p0,bounds=boundaries)
+                try:
+                    # fit the g2 functions
+                    popt, pcov = fit(function, xdata=x, ydata=y, sigma=dy, p0=p0, bounds=boundaries)
+                    q_fit.append(df_selected['q'][i])
+                    all_popt += [popt]
+
+                except RuntimeError:
+                    print("Couldn't fit !!")
+
                 if plot:
-                    plt.errorbar(x,y,dy,color=colors[qv],marker='o',ls='',mec='black',mew=.3, label=f'{angle:.0f}')
-                    plt.plot(x,function(x,*popt), c='r', ls='--',lw=1)
-                    plt.grid('on',lw=.4)    
+                    plt.errorbar(x, y, dy, c=colors[qv], marker='o', ls='', mec='black', mew=.3, label=f'{angle:.0f}')
+                    plt.plot(x, function(x,*popt), c='r', ls='--',lw=1)
+                    plt.grid(ls=':', c='gray', alpha=0.7)    
                     plt.xscale('log')
                     plt.xlabel('t (s)')
                     plt.ylabel('$g_2$-1')
                     plt.title(f'T={temperature:.0f} K')
                     plt.legend(frameon=False, fontsize=8, title='angle', ncols=2)
  
-                all_popt += [popt]
-                 
-            
-            all_popt=np.array(all_popt)
+            # plot Gamma vs q^2 and fit it linearly
+            all_popt = np.array(all_popt)
             plt.figure()
-            Gamma=1/all_popt[:,1]
             plt.figure(fig1)
-            D,pcov = fit(self.tau_fit,xdata=q**2,ydata=Gamma)
-            plt.plot(q**2,Gamma,color=colors_temp[tn],marker='o',ls='',mec='black',mew=.3, label=f'{temperature:.0f}')
-            plt.plot(q**2,self.tau_fit(q**2,D),color='red',ls='dashed',lw=1)
-            plt.grid('on',lw=.4)    
+
+            Gamma = 1/all_popt[:,1]
+            q_fit = np.array(q_fit)
+
+            D, pcov = fit(self.tau_fit, xdata=q_fit**2, ydata=Gamma)
+            plt.plot(q_fit**2, Gamma, color=colors_temp[tn],marker='o', ls='', mec='black', mew=.3, label=f'{temperature:.0f}')
+            plt.plot(q_fit**2, self.tau_fit(q_fit**2,D), color='red', ls='dashed', lw=1)
+            plt.grid(ls=':', c='gray', alpha=0.7)       
             plt.xlabel('$q^2$ (m$^{-2}$)')
             plt.ylabel('$\Gamma$ (s$^{-1}$)')
-            Dconst[tn]=D
+            Dconst[tn] = D
             plt.legend(title='T (K)')
             
-        return(all_popt,q,Dconst,temperatures)
+        return (np.array(all_popt), np.array(q), np.array(Dconst), np.array(temperatures))
     
     
     ############################################################################
