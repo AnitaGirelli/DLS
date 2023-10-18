@@ -20,77 +20,79 @@ class DLS_class:
     def load_data(self):
         """ Load the data in a given folder and save it in a dataframe """
 
-        os.chdir(self.dirname)
-        for fname in glob.glob("*.dat"):    
-            lines = []
-            i = 0
-            
-            try:
-                with open (fname, 'rt') as file:     # Open file for reading text data.
-                    for line in file:                # For each line, stored as line,
-                        lines.append(line)           # add its contents to lines.
-                        
-                        index = line.find("Scattering angle")
-                        if index != -1:             # If something was found,
-                            #theta_index = len(lines)
-                            theta = float(line[18:].strip()) # scattering angle, deg
-
-                        index = line.find("Duration")
-                        if index != -1:             # If something was found,
-                            duration = float(line[14:].strip()) # duration, s
-
-                        index = line.find("Viscosity")
-                        if index != -1:             # If something was found,
-                            n = float(line[18:].strip()) # viscosity, mPas
-                            
-                        index = line.find("Temperature")
-                        if index != -1:             # If something was found,
-                            temp = float(line[17:].strip()) # temperature, K
-
-                        index = line.find("Laser intensity")
-                        if index != -1:             # If something was found,
-                            laser_intensity = float(line[22:].strip()) # laser intensity, mW
-
-                        index = line.find("Average Count rate  A")
-                        if index != -1:             # If something was found,
-                            av_cra = float(line[29:].strip()) # average count rate A, kHz
-
-                        index = line.find("Average Count rate  B")
-                        if index != -1:             # If something was found,
-                            av_crb = float(line[29:].strip()) # average count rate B, kHz
-                            
-                        index = line.find("Intercept")
-                        if index != -1:             # If something was found,
-                            intercept = float(line[11:].strip()) # average count rate B, kHz
-                            
-                        index = line.find("g2")
-                        if index != -1:             # If something was found,
-                            g2_index = len(lines)   # row index for lag time / g2 data
-
-                        index = line.find("Count Rate History")
-                        if index != -1:             # If something was found,
-                            cr_index = len(lines)   # row index for count rate history
-                    
-                    
-                    t, g2 = np.genfromtxt(fname,delimiter=None,autostrip=True,unpack=True,skip_header=g2_index,skip_footer=len(lines)-cr_index) # lag time / g2 data
-                    #time, cra, crb = np.genfromtxt(fname,delimiter=None,autostrip=True,unpack=True,skip_header=cr_index,skip_footer=0) # count rate history
+        pattern='*.dat'
+        for path, subdirs, files in os.walk(self.dirname):
+            for name in files:
+                fname=os.path.join(path, name)
+                if fnmatch(fname, pattern):
+                    lines = []
+                    i = 0            
+                    try:
+                        with open (fname, 'rt') as file:     # Open file for reading text data.
+                            for line in file:                # For each line, stored as line,
+                                lines.append(line)           # add its contents to lines.
+                                
+                                index = line.find("Scattering angle")
+                                if index != -1:             # If something was found,
+                                    #theta_index = len(lines)
+                                    theta = float(line[18:].strip()) # scattering angle, deg
         
-                    self.df=self.df.append(  
-                            {"Scattering angle" :               theta, 
-                                "q" :                          (4*np.pi*self.n0*np.sin(np.round(theta)/2*np.pi/180)/self.wavelength), # scattering vector, 1/m
-                                "Duration" :                    duration,
-                                "Temperature" :                 int(np.round(temp)),
-                                "Laser intensity" :             laser_intensity,
-                                "Average Count rate  A":        av_cra,
-                                "Average Count rate  B":        av_crb,
-                                "Intercept":                    intercept,
-                                "g2":                           g2,
-                                "t":                            t,
-                                "filename":                     fname},
-                             ignore_index=True)
-                  
-            except ValueError:
-                print(f'The file {fname} is not a g2 file.')
+                                index = line.find("Duration")
+                                if index != -1:             # If something was found,
+                                    duration = float(line[14:].strip()) # duration, s
+        
+                                index = line.find("Viscosity")
+                                if index != -1:             # If something was found,
+                                    n = float(line[18:].strip()) # viscosity, mPas
+                                    
+                                index = line.find("Temperature")
+                                if index != -1:             # If something was found,
+                                    temp = float(line[17:].strip()) # temperature, K
+        
+                                index = line.find("Laser intensity")
+                                if index != -1:             # If something was found,
+                                    laser_intensity = float(line[22:].strip()) # laser intensity, mW
+        
+                                index = line.find("Average Count rate  A")
+                                if index != -1:             # If something was found,
+                                    av_cra = float(line[29:].strip()) # average count rate A, kHz
+        
+                                index = line.find("Average Count rate  B")
+                                if index != -1:             # If something was found,
+                                    av_crb = float(line[29:].strip()) # average count rate B, kHz
+                                    
+                                index = line.find("Intercept")
+                                if index != -1:             # If something was found,
+                                    intercept = float(line[11:].strip()) # average count rate B, kHz
+                                    
+                                index = line.find("g2")
+                                if index != -1:             # If something was found,
+                                    g2_index = len(lines)   # row index for lag time / g2 data
+        
+                                index = line.find("Count Rate History")
+                                if index != -1:             # If something was found,
+                                    cr_index = len(lines)   # row index for count rate history
+                            
+                            
+                            t, g2 = np.genfromtxt(fname,delimiter=None,autostrip=True,unpack=True,skip_header=g2_index,skip_footer=len(lines)-cr_index) # lag time / g2 data
+                            #time, cra, crb = np.genfromtxt(fname,delimiter=None,autostrip=True,unpack=True,skip_header=cr_index,skip_footer=0) # count rate history
+                
+                            self.df=self.df.append(  
+                                    {"Scattering angle" :               theta, 
+                                        "q" :                          (4*np.pi*self.n0*np.sin(np.round(theta)/2*np.pi/180)/self.wavelength), # scattering vector, 1/m
+                                        "Duration" :                    duration,
+                                        "Temperature" :                 int(np.round(temp)),
+                                        "Laser intensity" :             laser_intensity,
+                                        "Average Count rate  A":        av_cra,
+                                        "Average Count rate  B":        av_crb,
+                                        "Intercept":                    intercept,
+                                        "g2":                           g2,
+                                        "t":                            t,
+                                        "filename":                     fname},
+                                     ignore_index=True)
+                          
+                    except ValueError:
+                        print(f'The file {fname} is not a g2 file.')
 
         
     def average_data(self, plot=True):
