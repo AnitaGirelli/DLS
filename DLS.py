@@ -115,7 +115,7 @@ class DLS_class:
                 plt.ylabel('$g_2$-1')
 
             for n, angle in enumerate(angles):
-                df_selected = self.df[(self.df['Scattering angle']==angle)&(self.df['Temperature']==temperature)]
+                df_selected = self.df[(self.df['Scattering angle']==angle)&(self.df['Temperature']==temperature)&(self.df['Intercept']<1.05)&(self.df['Intercept']>.95)]
 
                 try:
                     len_g2 = []
